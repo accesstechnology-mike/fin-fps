@@ -1209,7 +1209,7 @@ function handleJoystickMove(event: TouchEvent | MouseEvent) {
   gameState.moveRight = joystickX > 0.3;
 }
 
-function handleJoystickEnd(event: TouchEvent | MouseEvent) {
+function handleJoystickEnd(_event: TouchEvent | MouseEvent) {
   joystickActive = false;
   
   // Reset joystick position visually
@@ -1247,7 +1247,7 @@ function handleTouchLook(event: TouchEvent) {
   let useTouch = null;
   for (let i = 0; i < event.touches.length; i++) {
     const touch = event.touches[i];
-    const target = touch.target;
+    const target = touch.target as HTMLElement;
     
     if (!target.closest('.action-button') && !target.closest('.joystick-area')) {
       useTouch = touch;
