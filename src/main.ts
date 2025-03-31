@@ -1067,12 +1067,25 @@ instructions.className = 'instructions'
 instructions.innerHTML = `
   <div class="instructions-content">
     <h1>GoldenEye FPS</h1>
-    <p>Click to play</p>
-    <p>WASD or Arrow Keys = Move</p>
-    <p>Mouse = Look</p>
-    <p>Click = Shoot</p>
-    <p>R = Reload Weapon</p>
-    <p>ESC = Pause</p>
+    
+    <div class="keyboard-instructions">
+      <p>Click to play</p>
+      <p>WASD or Arrow Keys = Move</p>
+      <p>Mouse = Look</p>
+      <p>Click = Shoot</p>
+      <p>R = Reload Weapon</p>
+      <p>Space = Jump</p>
+      <p>ESC = Pause</p>
+    </div>
+    
+    <div class="touch-instructions">
+      <p>Tap to play</p>
+      <p>Left Joystick = Move</p>
+      <p>Swipe Screen = Look</p>
+      <p>Shoot Button = Shoot</p>
+      <p>Reload Button = Reload</p>
+      <p>Jump Button = Jump</p>
+    </div>
   </div>
 `
 document.body.appendChild(instructions)
@@ -1290,6 +1303,8 @@ document.addEventListener('touchcancel', handleTouchEnd);
 // Set up action button event listeners
 shootButton.addEventListener('touchstart', (event: TouchEvent) => {
   event.preventDefault();
+  event.stopPropagation(); // Stop event from bubbling up
+  
   if (controls.isLocked) {
     shoot();
   } else {
@@ -1299,46 +1314,29 @@ shootButton.addEventListener('touchstart', (event: TouchEvent) => {
 
 reloadButton.addEventListener('touchstart', (event: TouchEvent) => {
   event.preventDefault();
+  event.stopPropagation(); // Stop event from bubbling up
   reload();
 });
 
 jumpButton.addEventListener('touchstart', (event: TouchEvent) => {
   event.preventDefault();
+  event.stopPropagation(); // Stop event from bubbling up
   if (gameState.canJump) {
     gameState.velocity.y += 350;
     gameState.canJump = false;
   }
 });
 
-// Replace the redeclared instructions with an update to the existing instructions
-// Update the existing instructions element content
-instructions.innerHTML = `
-  <div class="instructions-content">
-    <h1>GoldenEye FPS</h1>
-    
-    <div class="keyboard-instructions">
-      <p>Click to play</p>
-      <p>WASD or Arrow Keys = Move</p>
-      <p>Mouse = Look</p>
-      <p>Click = Shoot</p>
-      <p>R = Reload Weapon</p>
-      <p>Space = Jump</p>
-      <p>ESC = Pause</p>
-    </div>
-    
-    <div class="touch-instructions">
-      <p>Tap to play</p>
-      <p>Left Joystick = Move</p>
-      <p>Swipe Screen = Look</p>
-      <p>Shoot Button = Shoot</p>
-      <p>Reload Button = Reload</p>
-      <p>Jump Button = Jump</p>
-    </div>
-  </div>
-`
-
 // Modified lock mechanism for touch devices
 if (isTouchDevice) {
+  // Add a tap listener to the instructions panel to lock controls
+  instructions.addEventListener('touchstart', (event: TouchEvent) => {
+    event.preventDefault(); // Prevent default to ensure tap is captured
+    if (!controls.isLocked) {
+      controls.lock();
+    }
+  });
+  
   // Add a tap listener to the screen to lock controls
   document.addEventListener('touchstart', (event: TouchEvent) => {
     const target = event.target as Element;
@@ -1346,7 +1344,8 @@ if (isTouchDevice) {
         !target.closest('.action-button') && 
         !target.closest('.joystick-area') && 
         !target.closest('#restart-button') &&
-        !target.closest('#restart-game-button')) {
+        !target.closest('#restart-game-button') &&
+        !target.closest('.instructions-content')) {
       controls.lock();
     }
   });
