@@ -1090,3 +1090,264 @@ createEnvironment(0);
 
 // Create initial enemies
 spawnEnemies(levelConfigs[0].enemyCount, levelConfigs[0].environmentSize);
+
+// Touch controls
+let isTouchDevice = false;
+let touchLookSensitivity = 0.1;
+let touchLookVector = new THREE.Vector2();
+let previousTouchPosition = new THREE.Vector2();
+let joystickActive = false;
+let joystickData = {
+  startPosition: new THREE.Vector2(),
+  currentPosition: new THREE.Vector2(),
+  deltaPosition: new THREE.Vector2(),
+  maxDistance: 50
+};
+
+// Create touch controls container
+const touchControls = document.createElement('div');
+touchControls.className = 'touch-controls';
+document.body.appendChild(touchControls);
+
+// Create virtual joystick
+const joystickArea = document.createElement('div');
+joystickArea.className = 'joystick-area';
+touchControls.appendChild(joystickArea);
+
+const joystick = document.createElement('div');
+joystick.className = 'joystick';
+joystickArea.appendChild(joystick);
+
+// Create action buttons container
+const actionButtons = document.createElement('div');
+actionButtons.className = 'action-buttons';
+touchControls.appendChild(actionButtons);
+
+// Create shoot button
+const shootButton = document.createElement('div');
+shootButton.className = 'action-button shoot-button';
+shootButton.textContent = 'SHOOT';
+actionButtons.appendChild(shootButton);
+
+// Create reload button
+const reloadButton = document.createElement('div');
+reloadButton.className = 'action-button reload-button';
+reloadButton.textContent = 'RELOAD';
+actionButtons.appendChild(reloadButton);
+
+// Create jump button
+const jumpButton = document.createElement('div');
+jumpButton.className = 'action-button jump-button';
+jumpButton.textContent = 'JUMP';
+actionButtons.appendChild(jumpButton);
+
+// Detect touch device
+function detectTouchDevice() {
+  isTouchDevice = 'ontouchstart' in window || 
+    navigator.maxTouchPoints > 0 || 
+    navigator.maxTouchPoints > 0;
+  
+  if (isTouchDevice) {
+    document.documentElement.classList.add('touch-device');
+  }
+}
+
+detectTouchDevice();
+
+// Handle joystick touch events
+function handleJoystickStart(event: TouchEvent | MouseEvent) {
+  event.preventDefault();
+  joystickActive = true;
+  
+  // Get touch position or use mouse position as fallback
+  const touch = 'touches' in event ? event.touches[0] : event;
+  const rect = joystickArea.getBoundingClientRect();
+  
+  joystickData.startPosition.set(
+    touch.clientX - rect.left,
+    touch.clientY - rect.top
+  );
+  
+  joystickData.currentPosition.copy(joystickData.startPosition);
+}
+
+function handleJoystickMove(event: TouchEvent | MouseEvent) {
+  if (!joystickActive) return;
+  event.preventDefault();
+  
+  // Get touch position or use mouse position as fallback
+  const touch = 'touches' in event ? event.touches[0] : event;
+  const rect = joystickArea.getBoundingClientRect();
+  
+  joystickData.currentPosition.set(
+    touch.clientX - rect.left,
+    touch.clientY - rect.top
+  );
+  
+  // Calculate joystick delta
+  joystickData.deltaPosition.subVectors(
+    joystickData.currentPosition,
+    joystickData.startPosition
+  );
+  
+  // Limit joystick movement to maxDistance
+  if (joystickData.deltaPosition.length() > joystickData.maxDistance) {
+    joystickData.deltaPosition.normalize().multiplyScalar(joystickData.maxDistance);
+  }
+  
+  // Update joystick position visually
+  joystick.style.transform = `translate(calc(-50% + ${joystickData.deltaPosition.x}px), calc(-50% + ${joystickData.deltaPosition.y}px))`;
+  
+  // Update movement based on joystick position
+  const joystickX = joystickData.deltaPosition.x / joystickData.maxDistance;
+  const joystickY = joystickData.deltaPosition.y / joystickData.maxDistance;
+  
+  // Set movement flags based on joystick position
+  gameState.moveForward = joystickY < -0.3;
+  gameState.moveBackward = joystickY > 0.3;
+  gameState.moveLeft = joystickX < -0.3;
+  gameState.moveRight = joystickX > 0.3;
+}
+
+function handleJoystickEnd(event: TouchEvent | MouseEvent) {
+  joystickActive = false;
+  
+  // Reset joystick position visually
+  joystick.style.transform = 'translate(-50%, -50%)';
+  
+  // Reset movement flags
+  gameState.moveForward = false;
+  gameState.moveBackward = false;
+  gameState.moveLeft = false;
+  gameState.moveRight = false;
+}
+
+// Set up joystick event listeners
+joystickArea.addEventListener('touchstart', handleJoystickStart);
+joystickArea.addEventListener('touchmove', handleJoystickMove);
+joystickArea.addEventListener('touchend', handleJoystickEnd);
+joystickArea.addEventListener('touchcancel', handleJoystickEnd);
+
+// For testing on desktop
+if (!isTouchDevice) {
+  joystickArea.addEventListener('mousedown', handleJoystickStart);
+  document.addEventListener('mousemove', handleJoystickMove);
+  document.addEventListener('mouseup', handleJoystickEnd);
+}
+
+// Handle screen touch for camera rotation
+function handleTouchLook(event: TouchEvent) {
+  // Only process if controls are locked
+  if (!controls.isLocked) return;
+  
+  // Only process if we have enough touches (at least one touch that's not on a button)
+  if (event.touches.length === 0) return;
+  
+  // Use the touch that's not on an action button or joystick
+  let useTouch = null;
+  for (let i = 0; i < event.touches.length; i++) {
+    const touch = event.touches[i];
+    const target = touch.target;
+    
+    if (!target.closest('.action-button') && !target.closest('.joystick-area')) {
+      useTouch = touch;
+      break;
+    }
+  }
+  
+  if (!useTouch) return;
+  
+  // Calculate delta movement
+  if (previousTouchPosition.x !== 0 && previousTouchPosition.y !== 0) {
+    touchLookVector.set(
+      useTouch.clientX - previousTouchPosition.x,
+      useTouch.clientY - previousTouchPosition.y
+    );
+    
+    // Rotate camera based on touch movement
+    controls.getObject().rotation.y -= touchLookVector.x * touchLookSensitivity * 0.002;
+    camera.rotation.x -= touchLookVector.y * touchLookSensitivity * 0.002;
+    
+    // Clamp camera pitch to avoid flipping
+    camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+  }
+  
+  previousTouchPosition.set(useTouch.clientX, useTouch.clientY);
+}
+
+function handleTouchEnd(event: TouchEvent) {
+  // If no active touches remain, reset previous touch position
+  if (event.touches.length === 0) {
+    previousTouchPosition.set(0, 0);
+  }
+}
+
+// Set up touch look event listeners
+document.addEventListener('touchmove', handleTouchLook);
+document.addEventListener('touchend', handleTouchEnd);
+document.addEventListener('touchcancel', handleTouchEnd);
+
+// Set up action button event listeners
+shootButton.addEventListener('touchstart', (event: TouchEvent) => {
+  event.preventDefault();
+  if (controls.isLocked) {
+    shoot();
+  } else {
+    controls.lock();
+  }
+});
+
+reloadButton.addEventListener('touchstart', (event: TouchEvent) => {
+  event.preventDefault();
+  reload();
+});
+
+jumpButton.addEventListener('touchstart', (event: TouchEvent) => {
+  event.preventDefault();
+  if (gameState.canJump) {
+    gameState.velocity.y += 350;
+    gameState.canJump = false;
+  }
+});
+
+// Replace the redeclared instructions with an update to the existing instructions
+// Update the existing instructions element content
+instructions.innerHTML = `
+  <div class="instructions-content">
+    <h1>GoldenEye FPS</h1>
+    
+    <div class="keyboard-instructions">
+      <p>Click to play</p>
+      <p>WASD or Arrow Keys = Move</p>
+      <p>Mouse = Look</p>
+      <p>Click = Shoot</p>
+      <p>R = Reload Weapon</p>
+      <p>Space = Jump</p>
+      <p>ESC = Pause</p>
+    </div>
+    
+    <div class="touch-instructions">
+      <p>Tap to play</p>
+      <p>Left Joystick = Move</p>
+      <p>Swipe Screen = Look</p>
+      <p>Shoot Button = Shoot</p>
+      <p>Reload Button = Reload</p>
+      <p>Jump Button = Jump</p>
+    </div>
+  </div>
+`
+
+// Modified lock mechanism for touch devices
+if (isTouchDevice) {
+  // Add a tap listener to the screen to lock controls
+  document.addEventListener('touchstart', (event: TouchEvent) => {
+    const target = event.target as Element;
+    if (!controls.isLocked && 
+        !target.closest('.action-button') && 
+        !target.closest('.joystick-area') && 
+        !target.closest('#restart-button') &&
+        !target.closest('#restart-game-button')) {
+      controls.lock();
+    }
+  });
+}
