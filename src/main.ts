@@ -46,8 +46,68 @@ const gameState = {
     intensity: 0.03,
     recoverySpeed: 0.1
   },
-  weaponRecoil: 0
+  weaponRecoil: 0,
+  currentLevel: 1,
+  maxLevels: 3
 }
+
+// Level configurations
+const levelConfigs = [
+  // Level 1 - Basic warehouse
+  {
+    fogColor: 0x000000,
+    fogDensity: 0.01,
+    lightColor: 0xffffff,
+    floorColor: 0x404040,
+    wallColor: 0x8888ff,
+    obstacleColors: [0x88aaff, 0xaaffaa, 0xffccaa],
+    enemyCount: 4,
+    environmentSize: 100,
+    obstacles: [
+      { width: 10, height: 5, depth: 10, position: new THREE.Vector3(-20, 2.5, -15), color: 0x88aaff },
+      { width: 5, height: 3, depth: 15, position: new THREE.Vector3(15, 1.5, 10), color: 0xaaffaa },
+      { width: 8, height: 7, depth: 3, position: new THREE.Vector3(5, 3.5, -25), color: 0xffccaa }
+    ]
+  },
+  // Level 2 - Factory setting
+  {
+    fogColor: 0x111122,
+    fogDensity: 0.008,
+    lightColor: 0xffaa77,
+    floorColor: 0x333333,
+    wallColor: 0x775555,
+    obstacleColors: [0x774433, 0x886655, 0x665544],
+    enemyCount: 7,
+    environmentSize: 150,
+    obstacles: [
+      { width: 12, height: 8, depth: 12, position: new THREE.Vector3(-30, 4, -25), color: 0x774433 },
+      { width: 8, height: 4, depth: 20, position: new THREE.Vector3(25, 2, 20), color: 0x886655 },
+      { width: 15, height: 10, depth: 4, position: new THREE.Vector3(8, 5, -40), color: 0x665544 },
+      { width: 6, height: 2, depth: 6, position: new THREE.Vector3(-15, 1, 35), color: 0x774433 },
+      { width: 2, height: 15, depth: 2, position: new THREE.Vector3(40, 7.5, -10), color: 0x886655 }
+    ]
+  },
+  // Level 3 - Underground bunker
+  {
+    fogColor: 0x001100,
+    fogDensity: 0.015,
+    lightColor: 0x88ff88,
+    floorColor: 0x224422,
+    wallColor: 0x336633,
+    obstacleColors: [0x224422, 0x336633, 0x448844],
+    enemyCount: 12,
+    environmentSize: 200,
+    obstacles: [
+      { width: 15, height: 5, depth: 15, position: new THREE.Vector3(-40, 2.5, -30), color: 0x224422 },
+      { width: 10, height: 6, depth: 20, position: new THREE.Vector3(35, 3, 30), color: 0x336633 },
+      { width: 20, height: 8, depth: 5, position: new THREE.Vector3(10, 4, -60), color: 0x448844 },
+      { width: 8, height: 4, depth: 8, position: new THREE.Vector3(-55, 2, 40), color: 0x224422 },
+      { width: 3, height: 20, depth: 3, position: new THREE.Vector3(60, 10, -20), color: 0x336633 },
+      { width: 25, height: 3, depth: 5, position: new THREE.Vector3(-25, 1.5, 0), color: 0x448844 },
+      { width: 5, height: 3, depth: 25, position: new THREE.Vector3(0, 1.5, 50), color: 0x224422 }
+    ]
+  }
+];
 
 // Bullets array
 const bullets: Bullet[] = []
@@ -55,8 +115,8 @@ const bulletSpeed = 20
 
 // Scene setup
 const scene = new THREE.Scene()
-scene.background = new THREE.Color(0x000000)
-scene.fog = new THREE.Fog(0x000000, 0, 500)
+scene.background = new THREE.Color(levelConfigs[0].fogColor)
+scene.fog = new THREE.Fog(levelConfigs[0].fogColor, 0, 500)
 
 // Camera setup
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000)
@@ -81,16 +141,16 @@ document.body.appendChild(crosshair)
 const ambientLight = new THREE.AmbientLight(0x404040)
 scene.add(ambientLight)
 
-const directionalLight = new THREE.DirectionalLight(0xffffff, 0.5)
+const directionalLight = new THREE.DirectionalLight(levelConfigs[0].lightColor, 0.5)
 directionalLight.position.set(1, 1, 1)
 directionalLight.castShadow = true
 scene.add(directionalLight)
 
 // Floor setup
-const floorGeometry = new THREE.PlaneGeometry(100, 100, 32, 32)
+const floorGeometry = new THREE.PlaneGeometry(levelConfigs[0].environmentSize, levelConfigs[0].environmentSize, 32, 32)
 floorGeometry.rotateX(-Math.PI / 2)
 const floorMaterial = new THREE.MeshStandardMaterial({ 
-  color: 0x404040,
+  color: levelConfigs[0].floorColor,
   roughness: 0.8
 })
 const floor = new THREE.Mesh(floorGeometry, floorMaterial)
@@ -377,6 +437,9 @@ class Enemy extends THREE.Group {
   }
 }
 
+// Create enemies array
+const enemies: Enemy[] = [];
+
 // Create enemies
 function createEnemy(position: THREE.Vector3) {
   const enemy = new Enemy(position);
@@ -384,72 +447,20 @@ function createEnemy(position: THREE.Vector3) {
   return enemy;
 }
 
-// Build environment
-// Create the walls without storing them in an unused variable
-createWall(100, 10, 1, new THREE.Vector3(0, 5, -50)); // Back wall
-createWall(100, 10, 1, new THREE.Vector3(0, 5, 50));  // Front wall
-createWall(1, 10, 100, new THREE.Vector3(-50, 5, 0)); // Left wall
-createWall(1, 10, 100, new THREE.Vector3(50, 5, 0));  // Right wall
-
-// Create obstacles
-createWall(10, 5, 10, new THREE.Vector3(-20, 2.5, -15), 0x88aaff)
-createWall(5, 3, 15, new THREE.Vector3(15, 1.5, 10), 0xaaffaa)
-createWall(8, 7, 3, new THREE.Vector3(5, 3.5, -25), 0xffccaa)
-
-// Create enemies
-const enemies = [
-  createEnemy(new THREE.Vector3(-15, 1, -10)),
-  createEnemy(new THREE.Vector3(20, 1, -20)),
-  createEnemy(new THREE.Vector3(10, 1, 15)),
-  createEnemy(new THREE.Vector3(-25, 1, 20)),
-]
-
-// Event listeners
-const onKeyDown = function (event: KeyboardEvent) {
-  switch (event.code) {
-    case 'ArrowUp':
-    case 'KeyW':
-      gameState.moveForward = true
-      break
-    case 'ArrowLeft':
-    case 'KeyA':
-      gameState.moveLeft = true
-      break
-    case 'ArrowDown':
-    case 'KeyS':
-      gameState.moveBackward = true
-      break
-    case 'ArrowRight':
-    case 'KeyD':
-      gameState.moveRight = true
-      break
-    case 'Space':
-      if (gameState.canJump === true) {
-        gameState.velocity.y += 350
-      }
-      gameState.canJump = false
-      break
-  }
-}
-
-const onKeyUp = function (event: KeyboardEvent) {
-  switch (event.code) {
-    case 'ArrowUp':
-    case 'KeyW':
-      gameState.moveForward = false
-      break
-    case 'ArrowLeft':
-    case 'KeyA':
-      gameState.moveLeft = false
-      break
-    case 'ArrowDown':
-    case 'KeyS':
-      gameState.moveBackward = false
-      break
-    case 'ArrowRight':
-    case 'KeyD':
-      gameState.moveRight = false
-      break
+// Create the walls and obstacles for a level
+function createEnvironment(levelIndex: number) {
+  const level = levelConfigs[levelIndex];
+  const size = level.environmentSize / 2;
+  
+  // Create walls
+  createWall(level.environmentSize, 10, 1, new THREE.Vector3(0, 5, -size), level.wallColor); // Back wall
+  createWall(level.environmentSize, 10, 1, new THREE.Vector3(0, 5, size), level.wallColor);  // Front wall
+  createWall(1, 10, level.environmentSize, new THREE.Vector3(-size, 5, 0), level.wallColor); // Left wall
+  createWall(1, 10, level.environmentSize, new THREE.Vector3(size, 5, 0), level.wallColor);  // Right wall
+  
+  // Create obstacles
+  for (const obstacle of level.obstacles) {
+    createWall(obstacle.width, obstacle.height, obstacle.depth, obstacle.position, obstacle.color);
   }
 }
 
@@ -681,48 +692,168 @@ document.addEventListener('keydown', (event) => {
   }
 });
 
-// Click to shoot
-document.addEventListener('click', () => {
-  if (controls.isLocked) {
-    shoot()
-  } else {
-    controls.lock()
+// Function to set up a level
+function setupLevel(levelIndex: number) {
+  // Clear existing objects
+  clearLevel();
+  
+  // Update scene properties
+  const level = levelConfigs[levelIndex];
+  scene.background = new THREE.Color(level.fogColor);
+  scene.fog = new THREE.Fog(level.fogColor, 0, level.environmentSize * 2);
+  
+  // Update lighting
+  directionalLight.color.set(level.lightColor);
+  
+  // Update floor
+  floor.geometry = new THREE.PlaneGeometry(level.environmentSize, level.environmentSize, 32, 32);
+  floor.geometry.rotateX(-Math.PI / 2);
+  (floor.material as THREE.MeshStandardMaterial).color.set(level.floorColor);
+  
+  // Create new environment
+  createEnvironment(levelIndex);
+  
+  // Spawn enemies
+  spawnEnemies(level.enemyCount, level.environmentSize);
+  
+  // Reset player position
+  camera.position.set(0, 1.6, 0);
+  controls.getObject().position.set(0, 1.6, 0);
+  
+  // Show level notification
+  showLevelNotification(levelIndex + 1);
+}
+
+// Function to clear the level
+function clearLevel() {
+  // Remove all enemies
+  for (const enemy of enemies) {
+    scene.remove(enemy);
   }
-})
+  enemies.length = 0;
+  
+  // Find and remove all walls and obstacles (anything that's not the floor, lights, or player)
+  const objectsToRemove: THREE.Object3D[] = [];
+  scene.traverse((object) => {
+    if (object instanceof THREE.Mesh && 
+        object !== floor && 
+        !(object instanceof Bullet) &&
+        object.parent === scene) {
+      objectsToRemove.push(object);
+    }
+  });
+  
+  for (const object of objectsToRemove) {
+    scene.remove(object);
+  }
+  
+  // Clear all bullets
+  for (const bullet of bullets) {
+    scene.remove(bullet);
+  }
+  bullets.length = 0;
+}
 
-document.addEventListener('keydown', onKeyDown)
-document.addEventListener('keyup', onKeyUp)
+// Function to spawn enemies for a level
+function spawnEnemies(count: number, environmentSize: number) {
+  const size = environmentSize / 2 - 10; // Avoid spawning too close to walls
+  
+  for (let i = 0; i < count; i++) {
+    // Create enemies at random positions
+    const x = Math.random() * size * 2 - size;
+    const z = Math.random() * size * 2 - size;
+    
+    // Don't spawn too close to the player
+    if (Math.abs(x) < 10 && Math.abs(z) < 10) {
+      i--; // Try again
+      continue;
+    }
+    
+    enemies.push(createEnemy(new THREE.Vector3(x, 1, z)));
+  }
+}
 
-// Handle window resize
-window.addEventListener('resize', () => {
-  camera.aspect = window.innerWidth / window.innerHeight
-  camera.updateProjectionMatrix()
-  renderer.setSize(window.innerWidth, window.innerHeight)
-})
+// Function to display level notification
+function showLevelNotification(levelNumber: number) {
+  const notification = document.createElement('div');
+  notification.className = 'level-notification';
+  notification.textContent = `Level ${levelNumber}`;
+  document.body.appendChild(notification);
+  
+  // Fade in
+  setTimeout(() => {
+    notification.style.opacity = '1';
+  }, 100);
+  
+  // Fade out and remove
+  setTimeout(() => {
+    notification.style.opacity = '0';
+    setTimeout(() => {
+      document.body.removeChild(notification);
+    }, 1000);
+  }, 3000);
+}
 
-// Lock/unlock pointer
-const instructions = document.createElement('div')
-instructions.className = 'instructions'
-instructions.innerHTML = `
-  <div class="instructions-content">
-    <h1>GoldenEye FPS</h1>
-    <p>Click to play</p>
-    <p>WASD or Arrow Keys = Move</p>
-    <p>Mouse = Look</p>
-    <p>Click = Shoot</p>
-    <p>R = Reload Weapon</p>
-    <p>ESC = Pause</p>
-  </div>
-`
-document.body.appendChild(instructions)
+// Check if level is complete
+function checkLevelComplete() {
+  if (enemies.length === 0) {
+    // Last level - show victory screen
+    if (gameState.currentLevel >= gameState.maxLevels) {
+      showVictoryScreen();
+    } else {
+      // Advance to next level
+      gameState.currentLevel++;
+      gameState.ammo = gameState.maxAmmo; // Refill ammo between levels
+      gameState.health = Math.min(gameState.health + 50, 100); // Give some health back
+      updateUI();
+      setupLevel(gameState.currentLevel - 1);
+    }
+  }
+}
 
-controls.addEventListener('lock', () => {
-  instructions.style.display = 'none'
-})
-
-controls.addEventListener('unlock', () => {
-  instructions.style.display = 'flex'
-})
+// Show victory screen
+function showVictoryScreen() {
+  // Unlock controls
+  controls.unlock();
+  
+  // Create victory screen
+  const victoryScreen = document.createElement('div');
+  victoryScreen.className = 'victory-screen';
+  victoryScreen.innerHTML = `
+    <h1>Victory!</h1>
+    <p>You completed all levels!</p>
+    <p>Final Score: ${gameState.score}</p>
+    <button id="restart-game-button">Play Again</button>
+  `;
+  document.body.appendChild(victoryScreen);
+  
+  // Show the victory screen
+  victoryScreen.style.display = 'flex';
+  
+  // Add restart button listener
+  const restartButton = document.getElementById('restart-game-button');
+  if (restartButton) {
+    restartButton.addEventListener('click', () => {
+      // Reset game state
+      gameState.health = 100;
+      gameState.score = 0;
+      gameState.ammo = gameState.maxAmmo;
+      gameState.currentLevel = 1;
+      
+      // Remove victory screen
+      document.body.removeChild(victoryScreen);
+      
+      // Setup first level
+      setupLevel(0);
+      
+      // Update UI
+      updateUI();
+      
+      // Lock controls again
+      controls.lock();
+    });
+  }
+}
 
 // Game over screen
 function showGameOver() {
@@ -750,12 +881,13 @@ function showGameOver() {
       gameState.health = 100;
       gameState.score = 0;
       gameState.ammo = gameState.maxAmmo;
+      gameState.currentLevel = 1;
       
       // Remove game over screen
       document.body.removeChild(gameOverScreen);
       
-      // Respawn enemies
-      respawnEnemies();
+      // Setup first level
+      setupLevel(0);
       
       // Update UI
       updateUI();
@@ -764,25 +896,6 @@ function showGameOver() {
       controls.lock();
     });
   }
-}
-
-// Function to respawn enemies
-function respawnEnemies() {
-  // Remove old enemies from scene
-  for (const enemy of enemies) {
-    scene.remove(enemy);
-  }
-  
-  // Clear enemies array
-  enemies.length = 0;
-  
-  // Create new enemies
-  enemies.push(
-    createEnemy(new THREE.Vector3(-15, 1, -10)),
-    createEnemy(new THREE.Vector3(20, 1, -20)),
-    createEnemy(new THREE.Vector3(10, 1, 15)),
-    createEnemy(new THREE.Vector3(-25, 1, 20))
-  );
 }
 
 // Game loop
@@ -855,6 +968,9 @@ function animate() {
             // Update score when enemy is killed
             gameState.score += 100;
             updateUI();
+            
+            // Check if level is complete
+            checkLevelComplete();
           }
           
           break;
@@ -876,3 +992,101 @@ function animate() {
 }
 
 animate()
+
+// Event listeners
+const onKeyDown = function (event: KeyboardEvent) {
+  switch (event.code) {
+    case 'ArrowUp':
+    case 'KeyW':
+      gameState.moveForward = true
+      break
+    case 'ArrowLeft':
+    case 'KeyA':
+      gameState.moveLeft = true
+      break
+    case 'ArrowDown':
+    case 'KeyS':
+      gameState.moveBackward = true
+      break
+    case 'ArrowRight':
+    case 'KeyD':
+      gameState.moveRight = true
+      break
+    case 'Space':
+      if (gameState.canJump === true) {
+        gameState.velocity.y += 350
+      }
+      gameState.canJump = false
+      break
+  }
+}
+
+const onKeyUp = function (event: KeyboardEvent) {
+  switch (event.code) {
+    case 'ArrowUp':
+    case 'KeyW':
+      gameState.moveForward = false
+      break
+    case 'ArrowLeft':
+    case 'KeyA':
+      gameState.moveLeft = false
+      break
+    case 'ArrowDown':
+    case 'KeyS':
+      gameState.moveBackward = false
+      break
+    case 'ArrowRight':
+    case 'KeyD':
+      gameState.moveRight = false
+      break
+  }
+}
+
+// Click to shoot
+document.addEventListener('click', () => {
+  if (controls.isLocked) {
+    shoot()
+  } else {
+    controls.lock()
+  }
+})
+
+document.addEventListener('keydown', onKeyDown)
+document.addEventListener('keyup', onKeyUp)
+
+// Handle window resize
+window.addEventListener('resize', () => {
+  camera.aspect = window.innerWidth / window.innerHeight
+  camera.updateProjectionMatrix()
+  renderer.setSize(window.innerWidth, window.innerHeight)
+})
+
+// Lock/unlock pointer
+const instructions = document.createElement('div')
+instructions.className = 'instructions'
+instructions.innerHTML = `
+  <div class="instructions-content">
+    <h1>GoldenEye FPS</h1>
+    <p>Click to play</p>
+    <p>WASD or Arrow Keys = Move</p>
+    <p>Mouse = Look</p>
+    <p>Click = Shoot</p>
+    <p>R = Reload Weapon</p>
+    <p>ESC = Pause</p>
+  </div>
+`
+document.body.appendChild(instructions)
+
+controls.addEventListener('lock', () => {
+  instructions.style.display = 'none'
+})
+
+controls.addEventListener('unlock', () => {
+  instructions.style.display = 'flex'
+})
+
+// Build initial level environment
+createEnvironment(0);
+
+// Create initial enemies
+spawnEnemies(levelConfigs[0].enemyCount, levelConfigs[0].environmentSize);
