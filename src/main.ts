@@ -1329,24 +1329,78 @@ jumpButton.addEventListener('touchstart', (event: TouchEvent) => {
 
 // Modified lock mechanism for touch devices
 if (isTouchDevice) {
-  // Add a tap listener to the instructions panel to lock controls
-  instructions.addEventListener('touchstart', (event: TouchEvent) => {
-    event.preventDefault(); // Prevent default to ensure tap is captured
+  // Create a prominent start button for touch devices
+  const startButton = document.createElement('button');
+  startButton.id = 'start-game-button';
+  startButton.textContent = 'TAP TO START';
+  startButton.style.position = 'absolute';
+  startButton.style.top = '70%';
+  startButton.style.left = '50%';
+  startButton.style.transform = 'translate(-50%, -50%)';
+  startButton.style.padding = '15px 30px';
+  startButton.style.fontSize = '24px';
+  startButton.style.background = 'rgba(0, 100, 255, 0.7)';
+  startButton.style.color = 'white';
+  startButton.style.border = '2px solid white';
+  startButton.style.borderRadius = '8px';
+  startButton.style.cursor = 'pointer';
+  startButton.style.zIndex = '100';
+  startButton.style.fontWeight = 'bold';
+  startButton.style.boxShadow = '0 0 15px rgba(0, 0, 0, 0.5)';
+  
+  // Add button to instructions
+  const instructionsContent = instructions.querySelector('.instructions-content');
+  if (instructionsContent) {
+    instructionsContent.appendChild(startButton);
+  }
+  
+  // Add specific tap handler for the start button
+  startButton.addEventListener('touchstart', (event: TouchEvent) => {
+    event.preventDefault();
+    event.stopPropagation();
+    
     if (!controls.isLocked) {
-      controls.lock();
+      // On iOS, we need to request fullscreen before requesting pointer lock
+      try {
+        // Try to go fullscreen first (may fail on iOS)
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen().then(() => {
+            controls.lock();
+          }).catch(() => {
+            // Just try to lock if fullscreen fails
+            controls.lock();
+          });
+        } else {
+          controls.lock();
+        }
+      } catch (e) {
+        // Fallback direct lock attempt
+        controls.lock();
+      }
     }
   });
   
-  // Add a tap listener to the screen to lock controls
-  document.addEventListener('touchstart', (event: TouchEvent) => {
-    const target = event.target as Element;
-    if (!controls.isLocked && 
-        !target.closest('.action-button') && 
-        !target.closest('.joystick-area') && 
-        !target.closest('#restart-button') &&
-        !target.closest('#restart-game-button') &&
-        !target.closest('.instructions-content')) {
-      controls.lock();
-    }
+  // Important: remove the old touchstart handler and add a more direct one
+  document.querySelectorAll('.instructions-content, .touch-instructions, .keyboard-instructions').forEach(el => {
+    el.addEventListener('touchstart', (event: Event) => {
+      event.preventDefault();
+      event.stopPropagation();
+      
+      if (!controls.isLocked) {
+        controls.lock();
+      }
+    });
+  });
+  
+  // Also update the controls lock and unlock handlers
+  controls.addEventListener('lock', () => {
+    instructions.style.display = 'none';
+    if (startButton) startButton.style.display = 'none';
+  });
+  
+  controls.addEventListener('unlock', () => {
+    instructions.style.display = 'flex';
+    if (startButton) startButton.style.display = 'block';
   });
 }
