@@ -1358,49 +1358,70 @@ if (isTouchDevice) {
   startButton.addEventListener('touchstart', (event: TouchEvent) => {
     event.preventDefault();
     event.stopPropagation();
+    console.log('Start button tapped'); // DEBUG
     
     if (!controls.isLocked) {
-      // On iOS, we need to request fullscreen before requesting pointer lock
-      try {
-        // Try to go fullscreen first (may fail on iOS)
-        const docEl = document.documentElement;
-        if (docEl.requestFullscreen) {
-          docEl.requestFullscreen().then(() => {
-            controls.lock();
-          }).catch(() => {
-            // Just try to lock if fullscreen fails
-            controls.lock();
-          });
-        } else {
+      console.log('Attempting to lock controls...'); // DEBUG
+      
+      // Try to go fullscreen first (helps on some devices, might be required on iOS)
+      const docEl = document.documentElement;
+      let lockAttempted = false;
+      
+      const attemptLock = () => {
+        if (!lockAttempted) {
+          console.log('Calling controls.lock()'); // DEBUG
           controls.lock();
+          lockAttempted = true;
         }
-      } catch (e) {
-        // Fallback direct lock attempt
-        controls.lock();
+      };
+      
+      if (docEl.requestFullscreen) {
+        console.log('Requesting fullscreen...'); // DEBUG
+        docEl.requestFullscreen()
+          .then(() => {
+            console.log('Fullscreen successful, attempting lock.'); // DEBUG
+            // Delay slightly to ensure fullscreen transition starts
+            setTimeout(attemptLock, 100); 
+          })
+          .catch((err) => {
+            console.log('Fullscreen failed or denied, attempting lock directly.', err); // DEBUG
+            attemptLock(); // Attempt lock even if fullscreen fails
+          });
+      } else {
+        console.log('requestFullscreen not supported, attempting lock directly.'); // DEBUG
+        attemptLock(); // Attempt lock if fullscreen API is not available
       }
+    } else {
+      console.log('Controls already locked.'); // DEBUG
     }
   });
   
-  // Important: remove the old touchstart handler and add a more direct one
+  // Important: Simplify the redundant touchstart handler
+  // Remove the listener attached to multiple elements
+  /*
   document.querySelectorAll('.instructions-content, .touch-instructions, .keyboard-instructions').forEach(el => {
     el.addEventListener('touchstart', (event: Event) => {
       event.preventDefault();
       event.stopPropagation();
       
       if (!controls.isLocked) {
-        controls.lock();
+        // Maybe add a log here too if keeping this
+        controls.lock(); 
       }
     });
   });
-  
-  // Also update the controls lock and unlock handlers
+  */
+
+  // Also update the controls lock and unlock handlers (ensure button state is managed)
   controls.addEventListener('lock', () => {
+    console.log('Controls locked event received.'); // DEBUG
     instructions.style.display = 'none';
     if (startButton) startButton.style.display = 'none';
   });
   
   controls.addEventListener('unlock', () => {
+    console.log('Controls unlocked event received.'); // DEBUG
     instructions.style.display = 'flex';
-    if (startButton) startButton.style.display = 'block';
+    if (startButton) startButton.style.display = 'block'; // Make sure it's visible when unlocked
   });
 }
