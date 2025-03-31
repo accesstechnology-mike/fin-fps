@@ -385,12 +385,11 @@ function createEnemy(position: THREE.Vector3) {
 }
 
 // Build environment
-const walls = [
-  createWall(100, 10, 1, new THREE.Vector3(0, 5, -50)), // Back wall
-  createWall(100, 10, 1, new THREE.Vector3(0, 5, 50)),  // Front wall
-  createWall(1, 10, 100, new THREE.Vector3(-50, 5, 0)), // Left wall
-  createWall(1, 10, 100, new THREE.Vector3(50, 5, 0)),  // Right wall
-]
+// Create the walls without storing them in an unused variable
+createWall(100, 10, 1, new THREE.Vector3(0, 5, -50)); // Back wall
+createWall(100, 10, 1, new THREE.Vector3(0, 5, 50));  // Front wall
+createWall(1, 10, 100, new THREE.Vector3(-50, 5, 0)); // Left wall
+createWall(1, 10, 100, new THREE.Vector3(50, 5, 0));  // Right wall
 
 // Create obstacles
 createWall(10, 5, 10, new THREE.Vector3(-20, 2.5, -15), 0x88aaff)
@@ -565,11 +564,9 @@ const updateWeaponPosition = (delta: number) => {
   const swayY = Math.cos(gameState.weaponSway.time * 1.5) * gameState.weaponSway.intensity * 0.5;
   
   // Add more pronounced bobbing when moving
-  let movementIntensity = 0;
-  
   if (gameState.moveForward || gameState.moveBackward || gameState.moveLeft || gameState.moveRight) {
     // Increase intensity of weapon bobbing when moving
-    movementIntensity = 0.06;
+    const movementIntensity = 0.06;
     
     // Walking cycle animation
     const walkCycleX = Math.sin(gameState.weaponSway.time * 5) * 0.03;
