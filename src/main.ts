@@ -898,19 +898,16 @@ function showGameOver() {
   }
 }
 
-// Add before scene setup (around line 86)
 // Detect if Pointer Lock is supported
 const hasPointerLock = 'pointerLockElement' in document || 
                      'mozPointerLockElement' in document || 
                      'webkitPointerLockElement' in document;
 
-// Track if animation has been started
-let animationStarted = false;
-
-// Modify the animate function to work without pointer lock
+// function animate() {
+//   requestAnimationFrame(animate);
+//   animationStarted = true;
 function animate() {
   requestAnimationFrame(animate);
-  animationStarted = true;
   
   // Only update if controls are locked OR if we're in iOS/no-pointer-lock mode and game is running
   const noPointerLockMode = (isIOS || !hasPointerLock) && (controls as any).enabled;
@@ -1417,6 +1414,7 @@ if (isTouchDevice) {
       
       console.log('Game started without pointer lock');
       
+      // Start the no-pointer-lock animation directly
       // Start our new animation function
       animateWithoutPointerLock();
     }
