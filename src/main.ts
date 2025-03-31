@@ -907,31 +907,6 @@ const hasPointerLock = 'pointerLockElement' in document ||
 // Track if animation has been started
 let animationStarted = false;
 
-// Replace the existing detectTouchDevice function (around line 1195)
-// Detect touch device
-function detectTouchDevice(): { isTouchDevice: boolean; isIOS: boolean } {
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-  
-  const touchDevice = 'ontouchstart' in window || 
-    navigator.maxTouchPoints > 0;
-  
-  if (touchDevice) {
-    document.documentElement.classList.add('touch-device');
-    if (isIOS) {
-      document.documentElement.classList.add('ios-device');
-    }
-  }
-  
-  return { isTouchDevice: touchDevice, isIOS };
-}
-
-const { isTouchDevice: touchEnabled, isIOS } = detectTouchDevice();
-let isTouchDevice = touchEnabled; // Keep compatibility with existing code
-
-// Scene setup
-// ... existing code ...
-
 // Modify the animate function to work without pointer lock
 function animate() {
   requestAnimationFrame(animate);
@@ -1143,6 +1118,7 @@ spawnEnemies(levelConfigs[0].enemyCount, levelConfigs[0].environmentSize);
 
 // Touch controls
 let isTouchDevice = false;
+let isIOS = false;
 let touchLookSensitivity = 0.1;
 let touchLookVector = new THREE.Vector2();
 let previousTouchPosition = new THREE.Vector2();
@@ -1153,6 +1129,10 @@ let joystickData = {
   deltaPosition: new THREE.Vector2(),
   maxDistance: 50
 };
+
+// Check iOS by using the global isIOS variable
+// Track if the game is running without pointer lock
+let gameRunning = false;
 
 // Create touch controls container
 const touchControls = document.createElement('div');
@@ -1194,11 +1174,16 @@ actionButtons.appendChild(jumpButton);
 // Detect touch device
 function detectTouchDevice() {
   isTouchDevice = 'ontouchstart' in window || 
-    navigator.maxTouchPoints > 0 || 
     navigator.maxTouchPoints > 0;
+  
+  isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+         (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   
   if (isTouchDevice) {
     document.documentElement.classList.add('touch-device');
+    if (isIOS) {
+      document.documentElement.classList.add('ios-device');
+    }
   }
 }
 
@@ -1391,18 +1376,6 @@ if (isTouchDevice) {
     instructionsContent.appendChild(startButton);
   }
 
-  // Check if this is an iOS device
-  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
-               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
-               
-  // Check if Pointer Lock is supported
-  const hasPointerLock = 'pointerLockElement' in document || 
-                        'mozPointerLockElement' in document || 
-                        'webkitPointerLockElement' in document;
-  
-  // Track if the game is running without pointer lock
-  let gameRunning = false;
-  
   // For iOS devices or other devices without Pointer Lock
   if (isIOS || !hasPointerLock) {
     console.log('iOS or device without Pointer Lock detected - using alternative control method');
