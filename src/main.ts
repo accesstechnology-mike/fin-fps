@@ -565,9 +565,6 @@ const updateWeaponPosition = (delta: number) => {
   
   // Add more pronounced bobbing when moving
   if (gameState.moveForward || gameState.moveBackward || gameState.moveLeft || gameState.moveRight) {
-    // Increase intensity of weapon bobbing when moving
-    const movementIntensity = 0.06;
-    
     // Walking cycle animation
     const walkCycleX = Math.sin(gameState.weaponSway.time * 5) * 0.03;
     const walkCycleY = Math.abs(Math.sin(gameState.weaponSway.time * 10)) * 0.02;
