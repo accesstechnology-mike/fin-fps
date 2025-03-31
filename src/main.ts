@@ -898,40 +898,77 @@ function showGameOver() {
   }
 }
 
-// Game loop
-function animate() {
-  requestAnimationFrame(animate)
+// Add before scene setup (around line 86)
+// Detect if Pointer Lock is supported
+const hasPointerLock = 'pointerLockElement' in document || 
+                     'mozPointerLockElement' in document || 
+                     'webkitPointerLockElement' in document;
+
+// Track if animation has been started
+let animationStarted = false;
+
+// Replace the existing detectTouchDevice function (around line 1195)
+// Detect touch device
+function detectTouchDevice(): { isTouchDevice: boolean; isIOS: boolean } {
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
   
-  // Only update if controls are locked
-  if (controls.isLocked) {
-    const time = performance.now()
-    const delta = (time - gameState.prevTime) / 1000
+  const touchDevice = 'ontouchstart' in window || 
+    navigator.maxTouchPoints > 0;
+  
+  if (touchDevice) {
+    document.documentElement.classList.add('touch-device');
+    if (isIOS) {
+      document.documentElement.classList.add('ios-device');
+    }
+  }
+  
+  return { isTouchDevice: touchDevice, isIOS };
+}
+
+const { isTouchDevice: touchEnabled, isIOS } = detectTouchDevice();
+let isTouchDevice = touchEnabled; // Keep compatibility with existing code
+
+// Scene setup
+// ... existing code ...
+
+// Modify the animate function to work without pointer lock
+function animate() {
+  requestAnimationFrame(animate);
+  animationStarted = true;
+  
+  // Only update if controls are locked OR if we're in iOS/no-pointer-lock mode and game is running
+  const noPointerLockMode = (isIOS || !hasPointerLock) && (controls as any).enabled;
+  
+  if (controls.isLocked || noPointerLockMode) {
+    const time = performance.now();
+    const delta = (time - gameState.prevTime) / 1000;
     
     // Movement
-    gameState.velocity.x -= gameState.velocity.x * 10.0 * delta
-    gameState.velocity.z -= gameState.velocity.z * 10.0 * delta
-    gameState.velocity.y -= 9.8 * 100.0 * delta // Gravity
+    gameState.velocity.x -= gameState.velocity.x * 10.0 * delta;
+    gameState.velocity.z -= gameState.velocity.z * 10.0 * delta;
+    gameState.velocity.y -= 9.8 * 100.0 * delta; // Gravity
     
-    gameState.direction.z = Number(gameState.moveForward) - Number(gameState.moveBackward)
-    gameState.direction.x = Number(gameState.moveRight) - Number(gameState.moveLeft)
-    gameState.direction.normalize()
+    gameState.direction.z = Number(gameState.moveForward) - Number(gameState.moveBackward);
+    gameState.direction.x = Number(gameState.moveRight) - Number(gameState.moveLeft);
+    gameState.direction.normalize();
     
     if (gameState.moveForward || gameState.moveBackward) {
-      gameState.velocity.z -= gameState.direction.z * 400.0 * delta
+      gameState.velocity.z -= gameState.direction.z * 400.0 * delta;
     }
     if (gameState.moveLeft || gameState.moveRight) {
-      gameState.velocity.x -= gameState.direction.x * 400.0 * delta
+      gameState.velocity.x -= gameState.direction.x * 400.0 * delta;
     }
     
-    controls.moveRight(-gameState.velocity.x * delta)
-    controls.moveForward(-gameState.velocity.z * delta)
+    controls.moveRight(-gameState.velocity.x * delta);
+    controls.moveForward(-gameState.velocity.z * delta);
     
-    camera.position.y += gameState.velocity.y * delta
+    camera.position.y += gameState.velocity.y * delta;
     
     if (camera.position.y < 1.6) {
-      gameState.velocity.y = 0
-      camera.position.y = 1.6
-      gameState.canJump = true
+      gameState.velocity.y = 0;
+      camera.position.y = 1.6;
+      gameState.canJump = true;
     }
     
     // Update weapon position with movement
@@ -945,8 +982,8 @@ function animate() {
     
     // Update bullets
     for (let i = 0; i < bullets.length; i++) {
-      const bullet = bullets[i]
-      bullet.update(delta)
+      const bullet = bullets[i];
+      bullet.update(delta);
       
       // Check for bullet collisions with enemies
       for (let j = 0; j < enemies.length; j++) {
@@ -979,19 +1016,19 @@ function animate() {
       
       // Remove bullets that have traveled too far
       if (bullet.position.distanceTo(camera.position) > 100) {
-        scene.remove(bullet)
-        bullets.splice(i, 1)
-        i--
+        scene.remove(bullet);
+        bullets.splice(i, 1);
+        i--;
       }
     }
     
-    gameState.prevTime = time
+    gameState.prevTime = time;
   }
   
-  renderer.render(scene, camera)
+  renderer.render(scene, camera);
 }
 
-animate()
+animate();
 
 // Event listeners
 const onKeyDown = function (event: KeyboardEvent) {
@@ -1327,7 +1364,7 @@ jumpButton.addEventListener('touchstart', (event: TouchEvent) => {
   }
 });
 
-// Modified lock mechanism for touch devices
+// Modified controls for touch devices
 if (isTouchDevice) {
   // Create a prominent start button for touch devices
   const startButton = document.createElement('button');
@@ -1353,75 +1390,227 @@ if (isTouchDevice) {
   if (instructionsContent) {
     instructionsContent.appendChild(startButton);
   }
+
+  // Check if this is an iOS device
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent) || 
+               (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+               
+  // Check if Pointer Lock is supported
+  const hasPointerLock = 'pointerLockElement' in document || 
+                        'mozPointerLockElement' in document || 
+                        'webkitPointerLockElement' in document;
   
-  // Add specific tap handler for the start button
-  startButton.addEventListener('touchstart', (event: TouchEvent) => {
-    event.preventDefault();
-    event.stopPropagation();
-    console.log('Start button tapped'); // DEBUG
+  // Track if the game is running without pointer lock
+  let gameRunning = false;
+  
+  // For iOS devices or other devices without Pointer Lock
+  if (isIOS || !hasPointerLock) {
+    console.log('iOS or device without Pointer Lock detected - using alternative control method');
     
-    if (!controls.isLocked) {
-      console.log('Attempting to lock controls...'); // DEBUG
-      
-      // Try to go fullscreen first (helps on some devices, might be required on iOS)
-      const docEl = document.documentElement;
-      let lockAttempted = false;
-      
-      const attemptLock = () => {
-        if (!lockAttempted) {
-          console.log('Calling controls.lock()'); // DEBUG
-          controls.lock();
-          lockAttempted = true;
-        }
-      };
-      
-      if (docEl.requestFullscreen) {
-        console.log('Requesting fullscreen...'); // DEBUG
-        docEl.requestFullscreen()
-          .then(() => {
-            console.log('Fullscreen successful, attempting lock.'); // DEBUG
-            // Delay slightly to ensure fullscreen transition starts
-            setTimeout(attemptLock, 100); 
-          })
-          .catch((err) => {
-            console.log('Fullscreen failed or denied, attempting lock directly.', err); // DEBUG
-            attemptLock(); // Attempt lock even if fullscreen fails
-          });
-      } else {
-        console.log('requestFullscreen not supported, attempting lock directly.'); // DEBUG
-        attemptLock(); // Attempt lock if fullscreen API is not available
-      }
-    } else {
-      console.log('Controls already locked.'); // DEBUG
-    }
-  });
-  
-  // Important: Simplify the redundant touchstart handler
-  // Remove the listener attached to multiple elements
-  /*
-  document.querySelectorAll('.instructions-content, .touch-instructions, .keyboard-instructions').forEach(el => {
-    el.addEventListener('touchstart', (event: Event) => {
+    // Add tap handler for the start button
+    startButton.addEventListener('touchstart', (event: TouchEvent) => {
       event.preventDefault();
       event.stopPropagation();
+      console.log('Start button tapped on iOS device');
       
-      if (!controls.isLocked) {
-        // Maybe add a log here too if keeping this
-        controls.lock(); 
+      if (!gameRunning) {
+        // Try to go fullscreen first
+        const docEl = document.documentElement;
+        if (docEl.requestFullscreen) {
+          docEl.requestFullscreen()
+            .then(() => {
+              console.log('Fullscreen successful, starting game without pointer lock.');
+              startGameWithoutPointerLock();
+            })
+            .catch((err) => {
+              console.log('Fullscreen failed, starting game anyway:', err);
+              startGameWithoutPointerLock();
+            });
+        } else {
+          console.log('Fullscreen not supported, starting game directly.');
+          startGameWithoutPointerLock();
+        }
       }
     });
-  });
-  */
+    
+    // Function to start the game without using pointer lock
+    function startGameWithoutPointerLock() {
+      gameRunning = true;
+      instructions.style.display = 'none';
+      startButton.style.display = 'none';
+      
+      // Enable controls without locking the pointer
+      (controls as any).enabled = true;
+      
+      console.log('Game started without pointer lock');
+      
+      // Start our new animation function
+      animateWithoutPointerLock();
+    }
+    
+    // Create a new touch look handler for iOS
+    function handleTouchLookNoPointerLock(event: TouchEvent) {
+      // Allow touch look even without pointer lock if the game is running
+      if (!controls.isLocked && !gameRunning) return;
+      
+      // Only process if we have enough touches (at least one touch that's not on a button)
+      if (event.touches.length === 0) return;
+      
+      // Use the touch that's not on an action button or joystick
+      let useTouch = null;
+      for (let i = 0; i < event.touches.length; i++) {
+        const touch = event.touches[i];
+        const target = touch.target as HTMLElement;
+        
+        if (!target.closest('.action-button') && !target.closest('.joystick-area')) {
+          useTouch = touch;
+          break;
+        }
+      }
+      
+      if (!useTouch) return;
+      
+      // Calculate delta movement
+      if (previousTouchPosition.x !== 0 && previousTouchPosition.y !== 0) {
+        touchLookVector.set(
+          useTouch.clientX - previousTouchPosition.x,
+          useTouch.clientY - previousTouchPosition.y
+        );
+        
+        // Rotate camera based on touch movement
+        camera.rotation.y -= touchLookVector.x * touchLookSensitivity * 0.002;
+        camera.rotation.x -= touchLookVector.y * touchLookSensitivity * 0.002;
+        
+        // Clamp camera pitch to avoid flipping
+        camera.rotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, camera.rotation.x));
+      }
+      
+      previousTouchPosition.set(useTouch.clientX, useTouch.clientY);
+    }
+    
+    // Remove existing touch handlers and add our new one
+    document.removeEventListener('touchmove', handleTouchLook);
+    document.addEventListener('touchmove', handleTouchLookNoPointerLock);
 
-  // Also update the controls lock and unlock handlers (ensure button state is managed)
+    // Create a separate animation function that will work without pointer lock
+    function animateWithoutPointerLock() {
+      requestAnimationFrame(animateWithoutPointerLock);
+      
+      // Run if controls are locked OR if we're in gameRunning mode without pointer lock
+      if (controls.isLocked || gameRunning) {
+        const time = performance.now();
+        const delta = (time - gameState.prevTime) / 1000;
+        
+        // Rest of the animation code (movement, bullets, enemies, etc.) remains the same
+        gameState.velocity.x -= gameState.velocity.x * 10.0 * delta;
+        gameState.velocity.z -= gameState.velocity.z * 10.0 * delta;
+        gameState.velocity.y -= 9.8 * 100.0 * delta; // Gravity
+        
+        gameState.direction.z = Number(gameState.moveForward) - Number(gameState.moveBackward);
+        gameState.direction.x = Number(gameState.moveRight) - Number(gameState.moveLeft);
+        gameState.direction.normalize();
+        
+        if (gameState.moveForward || gameState.moveBackward) {
+          gameState.velocity.z -= gameState.direction.z * 400.0 * delta;
+        }
+        if (gameState.moveLeft || gameState.moveRight) {
+          gameState.velocity.x -= gameState.direction.x * 400.0 * delta;
+        }
+        
+        controls.moveRight(-gameState.velocity.x * delta);
+        controls.moveForward(-gameState.velocity.z * delta);
+        
+        camera.position.y += gameState.velocity.y * delta;
+        
+        if (camera.position.y < 1.6) {
+          gameState.velocity.y = 0;
+          camera.position.y = 1.6;
+          gameState.canJump = true;
+        }
+        
+        // Update weapon position with movement
+        updateWeaponPosition(delta);
+        
+        // Update enemies
+        for (let i = 0; i < enemies.length; i++) {
+          const enemy = enemies[i] as Enemy;
+          enemy.update(delta, camera.position);
+        }
+        
+        // Update bullets
+        for (let i = 0; i < bullets.length; i++) {
+          const bullet = bullets[i];
+          bullet.update(delta);
+          
+          // Check for bullet collisions with enemies
+          for (let j = 0; j < enemies.length; j++) {
+            const enemy = enemies[j] as Enemy;
+            if (bullet.position.distanceTo(enemy.position) < 1.5) {
+              // Deal damage to enemy
+              const killed = enemy.takeDamage(50);
+              
+              // Remove bullet
+              scene.remove(bullet);
+              bullets.splice(i, 1);
+              i--;
+              
+              // If enemy was killed, remove it and update score
+              if (killed) {
+                scene.remove(enemy);
+                enemies.splice(j, 1);
+                
+                // Update score when enemy is killed
+                gameState.score += 100;
+                updateUI();
+                
+                // Check if level is complete
+                checkLevelComplete();
+              }
+              
+              break;
+            }
+          }
+          
+          // Remove bullets that have traveled too far
+          if (bullet.position.distanceTo(camera.position) > 100) {
+            scene.remove(bullet);
+            bullets.splice(i, 1);
+            i--;
+          }
+        }
+        
+        gameState.prevTime = time;
+      }
+      
+      renderer.render(scene, camera);
+    }
+  } else {
+    // For devices with Pointer Lock support, use the original method
+    startButton.addEventListener('touchstart', (event: TouchEvent) => {
+      event.preventDefault();
+      event.stopPropagation();
+      console.log('Start button tapped - using pointer lock');
+      
+      if (!controls.isLocked) {
+        try {
+          controls.lock();
+        } catch (e) {
+          console.error('Error locking controls:', e);
+        }
+      }
+    });
+  }
+
+  // Standard lock/unlock event handlers
   controls.addEventListener('lock', () => {
-    console.log('Controls locked event received.'); // DEBUG
+    console.log('Controls locked event received.');
     instructions.style.display = 'none';
-    if (startButton) startButton.style.display = 'none';
+    startButton.style.display = 'none';
   });
   
   controls.addEventListener('unlock', () => {
-    console.log('Controls unlocked event received.'); // DEBUG
+    console.log('Controls unlocked event received.');
     instructions.style.display = 'flex';
-    if (startButton) startButton.style.display = 'block'; // Make sure it's visible when unlocked
+    startButton.style.display = 'block';
   });
 }
